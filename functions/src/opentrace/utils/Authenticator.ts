@@ -3,6 +3,7 @@ import {CallableContext} from "firebase-functions/lib/providers/https";
 
 export default class Authenticator {
   async authenticate(data: any, context: CallableContext): Promise<string> {
+    console.log('Authentication context', JSON.stringify(context.auth));
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }

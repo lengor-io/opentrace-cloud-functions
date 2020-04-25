@@ -9,7 +9,7 @@ import formatTimestamp from "./utils/formatTimestamp";
 /**
  * Get upload token by passing in a secret string as `data`
  */
-const getUploadToken = async (uid: string, data: any, context: functions.https.CallableContext) => {
+export async function getUploadToken(uid: string, data: any, context: functions.https.CallableContext) {
   console.log('getUploadToken:', 'uid', uid, 'data', data, 'ip', context.rawRequest.ip);
 
   let valid = false;
@@ -48,6 +48,24 @@ const getUploadToken = async (uid: string, data: any, context: functions.https.C
   }
 };
 
+/**
+ * Create upload code
+ */
+export async function createUploadCodes(uid: string, data: string, context: functions.https.CallableContext) {
+  console.log('createUploadCodes:', 'uid', uid, 'data', data, 'ip', context.rawRequest.ip);
+
+  if (!data) {
+    console.log('createUploadCodes:', `Invalid data: ${data}`);
+    throw new functions.https.HttpsError('invalid-argument', `Invalid data: ${data}`);
+  }
+  
+  await storeUploadCodes(data.split(','));
+  
+  return {
+    status: "SUCCESS",
+  };
+};
+
 export async function storeUploadCodes(uploadCodes: string[]) {
   // Prepare encrypter
   const encryptionKey = await getEncryptionKey();
@@ -58,7 +76,7 @@ export async function storeUploadCodes(uploadCodes: string[]) {
   // Encode payload
   const payloadData = customEncrypter.encryptAndEncode(payload);
 
-  const writeResult = await admin.firestore().collection('codes').doc('uploadCode').set({uploadCode: payloadData.toString('base64')});
+  const writeResult = await admin.firestore().collection('codes').doc('uploadCode').set({ uploadCode: payloadData.toString('base64') });
   console.log('storeCodes:', 'upload code is stored successfully at', formatTimestamp(writeResult.writeTime.seconds));
 }
 
@@ -92,7 +110,7 @@ export function validateToken(token: string, encryptionKey: Buffer, validateToke
   const decryptedData = customEncrypter.decodeAndDecrypt(payloadData, [payloadData.length - 32, 16, 16]);
   console.log('checkToken:', 'decryptedData:', decryptedData, Buffer.from(decryptedData, 'base64').toString());
 
-  const {uid, createdAt, upload} = JSON.parse(Buffer.from(decryptedData, 'base64').toString());
+  const { uid, createdAt, upload } = JSON.parse(Buffer.from(decryptedData, 'base64').toString());
   console.log('checkToken:', 'uid:', `${uid.substring(0, 8)}***`, 'createdAt:', formatTimestamp(createdAt), 'upload:', upload);
 
   if (validateTokenTimestamp && Date.now() / 1000 - createdAt > config.upload.tokenValidityPeriod * 3600) {
@@ -107,7 +125,5 @@ export function validateToken(token: string, encryptionKey: Buffer, validateToke
 
   // Note: Cannot validate uid as file metadata does not contain uid
 
-  return {uid: uid, uploadCode: upload};
+  return { uid: uid, uploadCode: upload };
 }
-
-export default getUploadToken;
